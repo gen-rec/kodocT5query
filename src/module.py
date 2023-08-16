@@ -29,7 +29,6 @@ class DocT5QueryModule(LightningModule):
             on_epoch=True,
             prog_bar=True,
             logger=True,
-            sync_dist=True,
         )
 
         return loss
@@ -41,7 +40,7 @@ class DocT5QueryModule(LightningModule):
         self.log(
             "val_loss",
             loss,
-            on_step=True,
+            on_step=False,
             on_epoch=True,
             prog_bar=True,
             logger=True,
@@ -57,7 +56,7 @@ class DocT5QueryModule(LightningModule):
         self.log(
             "test_loss",
             loss,
-            on_step=True,
+            on_step=False,
             on_epoch=True,
             prog_bar=True,
             logger=True,
