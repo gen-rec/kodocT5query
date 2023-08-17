@@ -94,6 +94,7 @@ def _parse_args() -> Namespace:
     logger.add_argument("--project_name", type=str, default="kodocT5query", help="Project name")
     logger.add_argument("--use_wandb", action="store_true", help="Whether to use wandb")
     logger.add_argument("--wandb_entity", type=str, default="kocohub", help="WandB entity name")
+    logger.add_argument("--wandb_tags", type=str, nargs="+", default=None, help="WandB tags")
 
     parsed = parser.parse_args()
 
@@ -123,6 +124,7 @@ def train(
     project_name: str | None = "kodocT5query",
     use_wandb: bool = False,
     wandb_entity: str | None = None,
+    wandb_tags: list[str] | None = None,
     python_logger: logging.Logger | None = None,
     *args,
     **kwargs,
@@ -149,6 +151,7 @@ def train(
         project_name (str): WandB project name
         use_wandb (bool): Whether to use wandb
         wandb_entity (str): WandB entity name
+        wandb_tags (list[str]): WandB tags
         python_logger (logging.Logger): Logger to use. If None, use default logger
         *args: Additional args
         **kwargs: Additional kwargs
@@ -218,9 +221,7 @@ def train(
         RichProgressBar(),
     ]
 
-    loggers = [
-        CSVLogger(save_dir="logs", name=project_name)
-    ]
+    loggers = [CSVLogger(save_dir="logs", name=project_name)]
 
     if use_wandb:
         python_logger.info("Using wandb")
@@ -229,6 +230,7 @@ def train(
                 project=project_name,
                 entity=wandb_entity,
                 name=f"{random_word}_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}",
+                tags=wandb_tags,
             ),
         )
 

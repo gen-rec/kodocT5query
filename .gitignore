@@ -222,4 +222,4 @@ cython_debug/
 
 .conda/
 data/
-ko-t5/
+koT5/
