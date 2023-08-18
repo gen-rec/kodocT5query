@@ -2,6 +2,17 @@
 
 docT5query를 한국어 데이터에 적용한 프로젝트입니다.
 
+## 사용 가능한 모델
+
+|                       모델명                        |  Parameter  |       모델 경로       |            토크나이저 경로            |
+|:------------------------------------------------:|:-----------:|:-----------------:|:------------------------------:|
+|  [pko-t5](https://github.com/paust-team/pko-t5)  | Base (275M) | paust/pko-t5-base |       paust/pko-t5-base        |
+| [koT5](https://github.com/wisenut-research/KoT5) | Base (222M) |    다운로드한 모델 경로    | 다운로드한 모델 경로의 `spiece.model` 파일 |
+
+pko-t5 모델은 별도 다운로드가 필요하지 않으며, Huggingface의 `from_pretrained()` 함수를 통해 사용할 수 있습니다.
+
+koT5 모델은 해당 repository의 `README.md`를 참고하여 다운로드할 수 있습니다.
+
 ## 실행 방법
 
 ### 1. 가상 환경 생성
