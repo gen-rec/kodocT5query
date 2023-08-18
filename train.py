@@ -206,7 +206,7 @@ def train(
     else:
         python_logger.info("Using Python tokenizer")
         tokenizer_cls = T5Tokenizer
-    tokenizer = tokenizer_cls.from_pretrained(tokenizer_path)
+    tokenizer = tokenizer_cls.from_pretrained(tokenizer_path, model_max_length=512)
     python_logger.info(f"Using tokenizer {tokenizer_cls.__name__}")
 
     # Load model and datamodule
