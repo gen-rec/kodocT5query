@@ -33,12 +33,12 @@ def generate_query(
     * Beam: Generate multiple queries using beam search
     * Top-k: Generate multiple queries using top-k sampling
 
-    For greedy decoding, `num_queries` must be 1.
+    For greedy decoding, ``num_queries`` must be 1.
 
-    For beam search, `num_queries` is the number of beams to use.
+    For beam search, ``num_queries`` is the number of beams to use.
 
-    For top-k sampling, `num_queries` is the number of queries to generate.
-    The top-k sampling is repeated until `num_queries` unique queries are generated.
+    For top-k sampling, ``num_queries`` is the number of queries to generate.
+    The top-k sampling is repeated until ``num_queries`` unique queries are generated.
 
     Args:
         model (T5ForConditionalGeneration): T5 model
@@ -130,7 +130,7 @@ def generate_queries_for_collection(
     """
     Generate queries for a collection of documents
 
-    For more information, see `generate_query`
+    For more information, see ``generate_query``
 
     Args:
         model (T5ForConditionalGeneration): T5 model
@@ -200,18 +200,18 @@ def predict(
     """
     Generate queries for a document
 
-    If a single document string(`document_str`) is provided, the queries will be generated for that document.
+    If a single document string(``document_str``) is provided, the queries will be generated for that document.
     The queries will be printed to stdout.
 
-    If a document collection file(`document_path`) is provided,
+    If a document collection file(``document_path``) is provided,
     the queries will be generated for each document in the collection.
 
     Two files are saved:
 
-    * (`collection_expanded.tsv`) A document collection file with the queries appended to each document
-    * (`generated_queries.json`) A json file mapping docid to generated queries
+    * (``collection_expanded.tsv``) A document collection file with the queries appended to each document
+    * (``generated_queries.json``) A json file mapping docid to generated queries
 
-    Only one of `document_str` and `document_path` can be provided. Providing both will raise a ValueError.
+    Only one of ``document_str`` and ``document_path`` can be provided. Providing both will raise a ValueError.
 
     Args:
         model_path (str): Path to the model (Huggingface model hub or local path)
