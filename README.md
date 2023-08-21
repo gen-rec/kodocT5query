@@ -1,4 +1,4 @@
-# Ko-docT5query
+# kodocT5query
 
 docT5query를 한국어 데이터에 적용한 프로젝트입니다.
 
