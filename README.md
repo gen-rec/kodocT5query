@@ -60,7 +60,27 @@ tokenizer = T5TokenizerFast.from_pretrained('output/{고유 식별자}', model_m
 
 추론 스크립트는 `predict.py`입니다. 다음과 같이 실행할 수 있습니다.
 
-*구현 예정*
+```bash
+python predict.py --model_path /path/to/model \
+    --tokenizer_path /path/to/tokenizer \  # Huggingface 토크나이저 경로 (기본값: model_path)
+    --document_path /path/to/collections.tsv \
+    --batch_size 100 \
+    --output_path /path/to/output
+```
+
+추론은 3가지 방법으로 가능합니다.
+
+1. Greedy decoding: 확률이 가장 높은 질의 1개를 생성합니다.
+2. Beam search: beam search를 사용하여 여러 개의 질의를 생성합니다.
+3. Top-k sampling: 확률이 높은 k개의 토큰을 샘플링하여 질의를 생성합니다.
+
+docT5query의 경우, top-k sampling을 사용하는 것이 가장 좋은 성능을 보입니다.
+
+추론 결과는 `output_path`에 저장됩니다. (기본값은 `document_path`와 동일)
+다음 2가지 파일이 생성됩니다.
+
+1. `generated_queries.json`: 각 docid마다 생성된 질의를 저장합니다.
+2. `collection_expanded.tsv`: `collections.tsv`에 생성된 질의를 추가하여 저장합니다.
 
 ## 데이터 형식
 
@@ -94,3 +114,20 @@ qid\tdocid
 ...
 ```
 
+### 4. 생성 결과 (`generated_queries.json`)
+
+```json5
+{
+    "docid1": [
+        "query1",
+        "query2",
+        // ...
+    ],
+    "docid2": [
+        "query1",
+        "query2",
+        // ...
+    ],
+    // ...
+}
+```
