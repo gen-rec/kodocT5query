@@ -280,7 +280,19 @@ def predict(
 
     else:
         # Use document provided
-        raise NotImplementedError("Not implemented yet")
+        print(f"Generating queries for document:\n{document_str}")
+        generated_query = generate_query(
+            model=model,
+            tokenizer=tokenizer,
+            document=document_str,
+            device=device,
+            strategy=strategy,
+            num_queries=num_queries,
+            batch_size=batch_size,
+        )
+        print("\nGenerated queries:")
+        for i, query in enumerate(generated_query, start=1):
+            print(f"{i}. {query}")
 
 
 def _main():
