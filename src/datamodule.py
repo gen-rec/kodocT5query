@@ -5,7 +5,7 @@ from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader, Dataset
 from transformers import PreTrainedTokenizer, PreTrainedTokenizerFast
 
-from src.utils import TokenizeCollate
+from src.utils import TokenizeCollate, load_map
 
 
 class DocT5QueryDataset(Dataset):
@@ -99,42 +99,20 @@ class DocT5QueryDataModule(LightningDataModule):
         self.test_qids = set()  # query_id
 
         for dataset_path in dataset_paths:
-            self.collections.update(
-                self._load_map(
-                    os.path.join(dataset_path, self.COLLECTIONS_FILE_NAME), "||"
-                )
-            )
-            self.queries.update(
-                self._load_map(os.path.join(dataset_path, self.QUERIES_FILE_NAME), "\t")
-            )
-            self.qrels.update(
-                self._load_map(os.path.join(dataset_path, self.QRELS_FILE_NAME), "\t")
-            )
+            self.collections.update(load_map(os.path.join(dataset_path, self.COLLECTIONS_FILE_NAME), "||"))
+            self.queries.update(load_map(os.path.join(dataset_path, self.QUERIES_FILE_NAME), "\t"))
+            self.qrels.update(load_map(os.path.join(dataset_path, self.QRELS_FILE_NAME), "\t"))
 
-            self.train_qids.update(
-                pickle.load(
-                    open(os.path.join(dataset_path, self.TRAIN_QIDS_FILE_NAME), "rb")
-                )
-            )
-            self.valid_qids.update(
-                pickle.load(
-                    open(os.path.join(dataset_path, self.VALID_QIDS_FILE_NAME), "rb")
-                )
-            )
-            self.test_qids.update(
-                pickle.load(
-                    open(os.path.join(dataset_path, self.TEST_QIDS_FILE_NAME), "rb")
-                )
-            )
+            self.train_qids.update(pickle.load(open(os.path.join(dataset_path, self.TRAIN_QIDS_FILE_NAME), "rb")))
+            self.valid_qids.update(pickle.load(open(os.path.join(dataset_path, self.VALID_QIDS_FILE_NAME), "rb")))
+            self.test_qids.update(pickle.load(open(os.path.join(dataset_path, self.TEST_QIDS_FILE_NAME), "rb")))
 
         self.tokenizer = tokenizer
 
         self.batch_size = batch_size
         self.num_workers = num_workers
 
-        self.qid_to_docid = [
-            (qid, self.qrels[qid]) for qid in self.queries
-        ]  # [(qid, docid), ...]
+        self.qid_to_docid = [(qid, self.qrels[qid]) for qid in self.queries]  # [(qid, docid), ...]
 
         # Split dataset
         self.train = []
@@ -149,9 +127,7 @@ class DocT5QueryDataModule(LightningDataModule):
             elif qid in self.test_qids:
                 self.test.append((qid, docid))
             else:
-                raise ValueError(
-                    f"Query id {qid} not found in neither train, val, nor test"
-                )
+                raise ValueError(f"Query id {qid} not found in neither train, val, nor test")
 
     def train_dataloader(self):
         dataset = DocT5QueryDataset(self.train, self.collections, self.queries)
@@ -184,9 +160,7 @@ class DocT5QueryDataModule(LightningDataModule):
         )
 
     def predict_dataloader(self):
-        dataset = DocT5QueryDataset(
-            self.test, self.collections, self.queries, return_labels=False
-        )
+        dataset = DocT5QueryDataset(self.test, self.collections, self.queries, return_labels=False)
         return DataLoader(
             dataset,
             batch_size=self.batch_size,
@@ -194,28 +168,3 @@ class DocT5QueryDataModule(LightningDataModule):
             num_workers=self.num_workers,
             collate_fn=TokenizeCollate(self.tokenizer, return_labels=False),
         )
-
-    @staticmethod
-    def _load_map(path: str, delimiter: str) -> dict[str, str]:
-        """
-        Load a map from a file
-
-        Args:
-            path (str): Path to the file
-            delimiter (str): Delimiter to use for splitting the lines
-
-        Examples:
-            >>> _load_map("path/to/file", "\\t")
-            {"key1": "value1", "key2": "value2"}
-
-        Returns:
-            dict[str, str]: Map from the file
-        """
-        with open(path, "r", encoding="utf-8") as f:
-            raw_collections = f.readlines()
-
-        raw_collections = [x.strip().split(delimiter) for x in raw_collections]
-
-        collections = {doc_id: text for doc_id, text in raw_collections}
-
-        return collections

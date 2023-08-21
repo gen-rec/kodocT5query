@@ -81,3 +81,28 @@ class TokenizeCollate:
         tokenized["labels"] = tokenized_queries
 
         return tokenized
+
+
+def load_map(path: str, delimiter: str) -> dict[str, str]:
+    """
+    Load a map from a file
+
+    Args:
+        path (str): Path to the file
+        delimiter (str): Delimiter to use for splitting the lines
+
+    Examples:
+        >>> _load_map("path/to/file", "\\t")
+        {"key1": "value1", "key2": "value2"}
+
+    Returns:
+        dict[str, str]: Map from the file
+    """
+    with open(path, "r", encoding="utf-8") as f:
+        raw_collections = f.readlines()
+
+    raw_collections = [x.strip().split(delimiter) for x in raw_collections]
+
+    collections = {doc_id: text for doc_id, text in raw_collections}
+
+    return collections
