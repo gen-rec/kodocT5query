@@ -6,11 +6,12 @@ from typing import Literal
 import torch
 from pytorch_lightning import seed_everything
 from tqdm import tqdm
-from transformers import T5ForConditionalGeneration, T5Tokenizer
+from transformers import T5ForConditionalGeneration, T5Tokenizer, T5TokenizerFast
 
 from src.utils import load_map
 
 
+@torch.no_grad()
 def generate_query(
     model: T5ForConditionalGeneration,
     tokenizer: T5Tokenizer,
@@ -18,7 +19,9 @@ def generate_query(
     device: torch.device,
     strategy: Literal["greedy", "beam", "top_k"],
     num_queries: int,
+    batch_size: int,
     query_max_length: int = 64,
+    max_tries: int = 256,
     **kwargs,
 ) -> list[str]:
     """
@@ -44,7 +47,9 @@ def generate_query(
         device (torch.device): Device to run model on
         strategy (Literal["greedy", "beam", "top_k"]): Strategy to use for generating queries
         num_queries (int): Number of queries to generate
+        batch_size (int): Batch size for top-k sampling
         query_max_length (int, optional): Max length of query. Defaults to 64.
+        max_tries (int, optional): Max number of tries for top-k sampling. Defaults to 200.
         kwargs: Keyword arguments to pass to the model
 
     Raises:
@@ -60,12 +65,12 @@ def generate_query(
     if num_queries < 1:
         raise ValueError("Number of queries must be greater than 0")
 
-    inputs = tokenizer(document, truncation=True, return_tensors="pt").to(device)
-
     if strategy == "greedy":
+        inputs = tokenizer(document, truncation=True, return_tensors="pt").to(device)
         outputs = model.generate(**inputs, do_sample=False, max_new_tokens=query_max_length, **kwargs)
         result = [tokenizer.decode(outputs[0], skip_special_tokens=True)]
     elif strategy == "beam":
+        inputs = tokenizer(document, truncation=True, return_tensors="pt").to(device)
         outputs = model.generate(
             **inputs,
             do_sample=False,
@@ -79,18 +84,29 @@ def generate_query(
         # Repeat top_k sampling until we have num_queries unique queries
         result = []
 
+        inputs = tokenizer([document] * batch_size, truncation=True, return_tensors="pt").to(device)
+
         queries_progress = tqdm(total=num_queries, desc="Generating queries", position=1, ncols=120, leave=False)
         total_tries = 0
         while len(result) < num_queries:
             outputs = model.generate(**inputs, do_sample=True, max_new_tokens=query_max_length, top_k=10, **kwargs)
-            decoded = tokenizer.decode(outputs[0], skip_special_tokens=True)
+            decoded_outputs = tokenizer.batch_decode(outputs, skip_special_tokens=True)
 
-            if decoded not in result:
-                result.append(decoded)
-                queries_progress.update(1)
+            # Filter out duplicates
+            for decoded_output in decoded_outputs:
+                if decoded_output not in result:
+                    result.append(decoded_output)
+                    queries_progress.update(1)
 
-            total_tries += 1
-            queries_progress.set_postfix({"tries": total_tries})
+                total_tries += 1
+                queries_progress.set_postfix({"tries": total_tries})
+
+                if len(result) >= num_queries:
+                    break
+
+                if total_tries >= max_tries:
+                    print(f"Max tries ({max_tries}) reached. Generated {len(result)} queries.")
+                    break
 
         queries_progress.close()
     else:
@@ -107,6 +123,7 @@ def generate_queries_for_collection(
     device: torch.device,
     strategy: Literal["greedy", "beam", "top_k"],
     num_queries: int,
+    batch_size: int = 8,
     query_max_length: int = 64,
     **kwargs,
 ):
@@ -123,6 +140,7 @@ def generate_queries_for_collection(
         device (torch.device): Device to run model on
         strategy (Literal["greedy", "beam", "top_k"]): Strategy to use for generating queries
         num_queries (int): Number of queries to generate
+        batch_size (int, optional): Batch size for top-k sampling. Defaults to 8.
         query_max_length (int, optional): Max length of query. Defaults to 64.
         kwargs: Keyword arguments to pass to the model
 
@@ -137,25 +155,29 @@ def generate_queries_for_collection(
     generated_queries = {}  # docid -> list[query]
     collection_expanded = {}  # docid -> document + query
 
-    for docid, doc in tqdm(collection.items(), desc="Expanding documents", position=0, ncols=120):
-        generated = generate_query(
-            model=model,
-            tokenizer=tokenizer,
-            document=doc,
-            device=device,
-            strategy=strategy,
-            num_queries=num_queries,
-            query_max_length=query_max_length,
-            **kwargs,
-        )
-        generated_queries[docid] = generated
-        collection_expanded[docid] = " ".join([doc] + generated)
+    try:
+        for docid, doc in tqdm(collection.items(), desc="Expanding documents", position=0, ncols=120):
+            generated = generate_query(
+                model=model,
+                tokenizer=tokenizer,
+                document=doc,
+                device=device,
+                strategy=strategy,
+                num_queries=num_queries,
+                batch_size=batch_size,
+                query_max_length=query_max_length,
+                **kwargs,
+            )
+            generated_queries[docid] = generated
+            collection_expanded[docid] = " ".join([doc] + generated)
+    except KeyboardInterrupt:
+        print("Interrupted. Saving generated queries and expanded collection...")
 
     # Save
-    with open(output_path / "generated_queries.json", "w") as f:
+    with open(output_path / "generated_queries.json", "w", encoding="utf-8") as f:
         json.dump(generated_queries, f, indent=1, ensure_ascii=False)
 
-    with open(output_path / "collection_expanded.tsv", "w") as f:
+    with open(output_path / "collection_expanded.tsv", "w", encoding="utf-8") as f:
         for docid, doc in collection_expanded.items():
             f.write(f"{docid}||{doc}\n")
 
@@ -167,6 +189,7 @@ def predict(
     model_path: str,
     tokenizer_path: str | None = None,
     num_queries: int = 10,
+    batch_size: int = 8,
     strategy: Literal["greedy", "beam", "top_k"] = "top_k",
     document_str: str | None = None,
     document_path: str | None = None,
@@ -195,6 +218,7 @@ def predict(
         tokenizer_path (str, optional): Path to the tokenizer (Huggingface model hub or local path). Defaults to None.
             If None, the tokenizer will be loaded from the model_path.
         num_queries (int, optional): Number of queries to generate. Defaults to 10.
+        batch_size (int, optional): Batch size for top-k sampling. Defaults to 8.
         strategy (Literal["greedy", "beam", "top_k"], optional): Strategy to use for generating queries.
             Defaults to "top_k".
 
@@ -231,7 +255,7 @@ def predict(
         seed_everything(seed)
 
     model = T5ForConditionalGeneration.from_pretrained(model_path).to(device)
-    tokenizer = T5Tokenizer.from_pretrained(tokenizer_path, model_max_length=512)
+    tokenizer = T5TokenizerFast.from_pretrained(tokenizer_path, model_max_length=512)
 
     if document_str is None:
         # Load document from file
@@ -250,6 +274,7 @@ def predict(
             output_path=output_path,
             device=device,
             strategy=strategy,
+            batch_size=batch_size,
             num_queries=num_queries,
         )
 
@@ -273,6 +298,9 @@ def _main():
     )
     arg_parser.add_argument(
         "--num_queries", type=int, default=10, help="Number of queries to generate for each document. Defaults to 10."
+    )
+    arg_parser.add_argument(
+        "--batch_size", type=int, default=8, help="Batch size for top-k sampling. Defaults to 8."
     )
     arg_parser.add_argument(
         "--strategy",
