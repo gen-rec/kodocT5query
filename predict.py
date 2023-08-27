@@ -21,7 +21,7 @@ def generate_query(
     num_queries: int,
     batch_size: int,
     query_max_length: int = 64,
-    max_tries: int = 256,
+    max_tries: int = 600,
     **kwargs,
 ) -> list[str]:
     """
