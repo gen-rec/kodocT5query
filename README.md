@@ -20,7 +20,7 @@ koT5 모델은 해당 repository의 `README.md`를 참고하여 다운로드할 
 ```bash
 conda create -n doct5query python=3.10.11
 conda activate doct5query
-conda install pytorch~=2.0.0 torchvision torchaudio pytorch-cuda=11.8 -c pytorch -c nvidia
+conda install pytorch~=2.0.0 pytorch-cuda=11.8 -c pytorch -c nvidia
 pip3 install -r requirements.txt
 ```
 
@@ -36,10 +36,10 @@ python train.py \
     --model_path /path/to/model \  # Huggingface 모델 경로
     --tokenizer_path /path/to/tokenizer \  # Huggingface 토크나이저 경로 (기본값: model_path)
     --batch_size 32 \
-    --max_steps -1 \  # 최대 학습 step (기본값: -1 (무한))
+    --max_steps -1 \  # 최대 학습 step (기본값: -1 (무한, EarlyStopping 사용))
     --val_check_interval 5000 \  # 해당 step마다 검증
     --accumulate_grad_batches 4 \  # 그래디언트 누적
-    --devices 2 \  # 사용할 GPU 개수
+    --devices 1 \  # 사용할 GPU 개수
     --lr 1e-4
 ```
 
